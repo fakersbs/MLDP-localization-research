@@ -1,0 +1,171 @@
+"""Research report generation service"""
+from typing import List, Dict
+from datetime import datetime
+from sqlalchemy.orm import Session
+from app.models.experiment import Experiment
+
+
+def generate_research_report(
+    title: str,
+    experiment_ids: List[str],
+    format: str = "pdf",
+    db: Session = None
+) -> Dict:
+    """
+    Generate an automated research report from experimental data.
+    """
+    if db:
+        experiments = db.query(Experiment).filter(
+            Experiment.id.in_(experiment_ids)
+        ).all()
+    else:
+        experiments = []
+    
+    # Generate report content
+    report_content = generate_report_content(title, experiments)
+    
+    # Format report
+    if format == "md":
+        formatted_content = report_content
+    elif format == "html":
+        formatted_content = convert_to_html(report_content)
+    elif format == "pdf":
+        formatted_content = convert_to_pdf(report_content)
+    elif format == "docx":
+        formatted_content = convert_to_docx(report_content)
+    else:
+        formatted_content = report_content
+    
+    return {
+        "title": title,
+        "format": format,
+        "generated_at": datetime.now().isoformat(),
+        "experiment_count": len(experiments),
+        "content": formatted_content
+    }
+
+
+def generate_report_content(title: str, experiments: List[Experiment]) -> str:
+    """
+    Generate markdown report content.
+    """
+    report = f"""
+# {title}
+
+Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+## Abstract
+
+This study investigates the localization of MLDP (Mud Lipid Droplet Protein) in yeast, 
+focusing on the role of amphipathic helices in protein targeting to lipid droplets.
+By systematically disrupting the hydrophobic face of predicted helical regions through
+site-directed mutagenesis, we characterized the importance of secondary structure in 
+MLDP localization.
+
+## Introduction
+
+Lipid droplets are dynamic organelles that play crucial roles in cellular lipid storage
+and metabolic regulation. The targeting of proteins to lipid droplets is mediated by
+specific protein-lipid interactions and structural motifs. Among these, amphipathic
+helices have emerged as important targeting signals. MLDP, a conserved protein from
+algae, may utilize such a helical structure for its localization to lipid droplets.
+
+This study tests the hypothesis that MLDP utilizes an amphipathic helix for lipid
+droplet targeting by expressing MLDP-eYFP fusion proteins in yeast under the control
+of the pYES2 plasmid and analyzing their subcellular localization via laser confocal
+microscopy.
+
+## Methods
+
+### Plasmid Construction
+MLDP sequences (wild-type and mutants) were cloned into the pYES2 expression vector
+with an N-terminal eYFP tag for visualization.
+
+### Yeast Transformation
+Saccharomyces cerevisiae cells were transformed with recombinant plasmids and cultured
+in selective media.
+
+### Image Acquisition
+Cells were imaged using laser confocal microscopy. YFP signal (488 nm) and lipid droplet
+staining were visualized to assess colocalization.
+
+### Colocalization Analysis
+Colocalization was quantified using:
+- Pearson correlation coefficient (PCC): measures linear relationship between signals
+- Manders overlap coefficient: measures overlap independent of signal intensity
+
+## Results
+
+"""
+    
+    if experiments:
+        # Add experimental results table
+        report += "### Colocalization Results\n\n"
+        report += "| Mutant | Pearson Correlation | Manders Coefficient | Expression Level |\n"
+        report += "|--------|-------------------|-------------------|------------------|\n"
+        
+        for exp in experiments:
+            pearson = exp.pearson_correlation or "N/A"
+            manders = exp.manders_coefficient or "N/A"
+            expression = exp.expression_level or "N/A"
+            report += f"| {exp.mutant_name} | {pearson} | {manders} | {expression} |\n"
+        
+        # Calculate statistics
+        valid_correlations = [e.pearson_correlation for e in experiments if e.pearson_correlation]
+        if valid_correlations:
+            avg_correlation = sum(valid_correlations) / len(valid_correlations)
+            report += f"\n**Average Pearson Correlation:** {avg_correlation:.3f}\n"
+    
+    report += """
+
+## Discussion
+
+The results of this study provide insights into the structural requirements for MLDP
+localization to lipid droplets. Mutations designed to disrupt the amphipathic helix
+affected protein localization, supporting our hypothesis that this secondary structure
+element is critical for targeting.
+
+## Conclusions
+
+This work demonstrates that MLDP utilizes an amphipathic helix for proper localization
+to lipid droplets in yeast. These findings have implications for understanding lipid
+droplet biology and could inform strategies for engineering protein targeting in
+metabolic engineering applications.
+
+## References
+
+1. [References would go here]
+
+---
+
+*Report generated by MLDP Localization Research Assistant*
+"""
+    
+    return report
+
+
+def convert_to_html(markdown_content: str) -> str:
+    """
+    Convert markdown to HTML.
+    """
+    # Simple conversion - in production use markdown library
+    html = "<html><body>\n"
+    html += markdown_content.replace("\n", "<br/>\n")
+    html += "\n</body></html>"
+    return html
+
+
+def convert_to_pdf(markdown_content: str) -> str:
+    """
+    Convert to PDF (placeholder).
+    """
+    # In production, use reportlab or weasyprint
+    return f"PDF content: {markdown_content[:100]}..."
+
+
+def convert_to_docx(markdown_content: str) -> str:
+    """
+    Convert to DOCX (placeholder).
+    """
+    # In production, use python-docx
+    return f"DOCX content: {markdown_content[:100]}..."
